@@ -140,8 +140,10 @@ class Profile:
         return result
 
     def computePersonalities(self):
-        personality = json.dumps(self.personality_insights.profile(
+
+        personality = json.dumps(self.personality_in sights.profile(
             text=self.getMessages()), indent=2)
+
         parsed_personality = json.loads(personality)
         self.lock.acquire()
         for personality in parsed_personality["tree"]["children"][0]["children"][0]["children"]:

@@ -215,7 +215,7 @@ def audioWorker(id,stop):
             time.sleep(1)
         except:
             pass
-            # print("Unexpected audioWorker error:", sys.exc_info()[0])
+            print("Unexpected audioWorker error:", sys.exc_info()[0])
         if stop():
             break
 
