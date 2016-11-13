@@ -155,6 +155,7 @@ class Profile:
         try:
             for word in message.split(" "):
                 if word.upper() in self.EMERGENCY_WORDS:
+                    print "sending help"
                     result = rapid.call('Twilio', 'sendSms', {
                         'accountSid': 'ACac8c7fa67c6225368680cefe0adad93a',
                         'accountToken': '4184dca455364439190864fe90b36c0a',

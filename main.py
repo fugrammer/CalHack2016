@@ -29,7 +29,7 @@ MOODWHITELIST=["sadness","neutral","happiness","fear","anger"]
 PERSONALITYWHITELIST = []
 NEEDBLACKLIST = ["Liberty","Ideal"]
 EMOTIONBLACKLIST = ["neutral"]
-THRESHOLD = 1500
+THRESHOLD = 2000
 CHUNK_SIZE = 1024
 FORMAT = pyaudio.paInt16
 RATE = 44100
@@ -343,7 +343,7 @@ def getEmotion(id,stop):
             for emotion in result[0]['scores']:
                 if emotion in MOODWHITELIST:
                     outcome[emotion]=result[0]['scores'][emotion]
-            if outcome["anger"]>0.8:
+            if outcome["anger"]>0.7:
                 print "anger detected"
                 result = rapid.call('Twilio', 'sendSms', {
                     'accountSid': 'ACac8c7fa67c6225368680cefe0adad93a',
@@ -357,7 +357,7 @@ def getEmotion(id,stop):
                     'maxPrice': '',
                     'provideFeedback': ''
                 });
-            if outcome["sadness"]>0.8:
+            if outcome["sadness"]>0.7:
                 print "sadness detected"
                 result = rapid.call('Twilio', 'sendSms', {
                     'accountSid': 'ACac8c7fa67c6225368680cefe0adad93a',
@@ -371,7 +371,7 @@ def getEmotion(id,stop):
                     'maxPrice': '',
                     'provideFeedback': ''
                 });
-            if outcome["fear"]>0.8:
+            if outcome["fear"]>0.7:
                 print "fear detected"
                 result = rapid.call('Twilio', 'sendSms', {
                     'accountSid': 'ACac8c7fa67c6225368680cefe0adad93a',
@@ -396,7 +396,7 @@ def getEmotion(id,stop):
 def camera(id,stop):
     global lock2
     global inbyte
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     while True:
         ret, frame = cap.read()
         # Our operations on the frame come here
@@ -450,7 +450,10 @@ def main():
     threads.append(c)
 
     while True:
-        app.run(host='192.168.161.1', debug=True,use_reloader=False)
+        try:
+            app.run(host='192.168.161.1', debug=True,use_reloader=False)
+        except:
+            continue
         option = raw_input("1. End application\n2. Save person data")
         if option == "1":
             break
