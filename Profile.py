@@ -155,8 +155,6 @@ class Profile:
         try:
             for word in message.split(" "):
                 if word.upper() in self.EMERGENCY_WORDS:
-                    print "sending help"
-
                     result = rapid.call('Twilio', 'sendSms', {
                         'accountSid': 'ACac8c7fa67c6225368680cefe0adad93a',
                         'accountToken': '4184dca455364439190864fe90b36c0a',
@@ -172,7 +170,6 @@ class Profile:
                     # message = self.client.messages.create(body="Your child seems to be in danger.",
                     #                                       to="+15108134713",  # Replace with your phone number
                     #                                       from_="+15109013221")  # Replace with your Twilio number
-                    print "help sent"
                     break
         except:
             pass

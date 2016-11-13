@@ -21,6 +21,7 @@ import unirest
 from watson_developer_cloud import TextToSpeechV1
 import sys
 import subprocess
+from flask import Flask, render_template, Response
 
 rapid = RapidConnect('Calhack', '69626f7d-c0d1-40bf-b52a-6b4d6f461f48')
 
@@ -36,7 +37,7 @@ import winsound
 
 _url = 'https://api.projectoxford.ai/emotion/v1.0/recognize'
 _key = "666bd7f2bb84487e880da9565f3394d6" #Here you have to paste your primary key
-_maxNumRetries = 10
+_maxNumRetries = 2
 
 speech_to_text = SpeechToTextV1(
     username='4ac3e445-4ff7-4dc5-bf72-990f241a818c',
@@ -207,12 +208,14 @@ def audioWorker(id,stop):
                     audio_file, content_type='audio/wav', timestamps=True, word_confidence=True), indent=2))
             parsed_message = json.loads(message)
             message = parsed_message["results"][0]["alternatives"][0]["transcript"]
+            message = message.strip()
             print "Message: ",message
             person1.addMessage(message)
             person1.computePersonalities()
             time.sleep(1)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            pass
+            # print("Unexpected audioWorker error:", sys.exc_info()[0])
         if stop():
             break
 
@@ -244,7 +247,6 @@ def displayStats(id,stop):
             explode = tuple(explode)
             pylab.pie(fracs, explode=explode, labels=labels,
                       autopct='%1.1f%%', shadow=True, startangle=90)
-            pylab.savefig("../livestream/static/personalities.jpg")
 
             ### Current Needs graph ###
             needs = person1.getNeeds()
@@ -270,7 +272,6 @@ def displayStats(id,stop):
             explode = tuple(explode)
             pylab.pie(fracs, explode=explode, labels=labels,
                 autopct='%1.1f%%', shadow=True, startangle=90,)
-            pylab.savefig("../livestream/static/needs.jpg")
 
             ### Summary Emotional Graph ###
             moods = person1.getMoodsStat(200)
@@ -295,7 +296,6 @@ def displayStats(id,stop):
             explode = tuple(explode)
             pylab.pie(fracs, explode=explode, labels=labels,
                       autopct='%1.1f%%', shadow=True, startangle=90, )
-            pylab.savefig("../livestream/static/emotionsummary.jpg")
 
             ### Historical Emotional Graph ###
             moods = person1.getMoods()
@@ -317,7 +317,6 @@ def displayStats(id,stop):
             pylab.xlabel("Time")
             pylab.legend(loc='upper left')
             pylab.show()
-            pylab.savefig("../livestream/static/emotion.jpg")
             pylab.pause(1)
 
             if stop():
@@ -344,7 +343,7 @@ def getEmotion(id,stop):
             for emotion in result[0]['scores']:
                 if emotion in MOODWHITELIST:
                     outcome[emotion]=result[0]['scores'][emotion]
-            if outcome["anger"]>1:
+            if outcome["anger"]>0.8:
                 print "anger detected"
                 result = rapid.call('Twilio', 'sendSms', {
                     'accountSid': 'ACac8c7fa67c6225368680cefe0adad93a',
@@ -358,6 +357,35 @@ def getEmotion(id,stop):
                     'maxPrice': '',
                     'provideFeedback': ''
                 });
+            if outcome["sadness"]>0.8:
+                print "sadness detected"
+                result = rapid.call('Twilio', 'sendSms', {
+                    'accountSid': 'ACac8c7fa67c6225368680cefe0adad93a',
+                    'accountToken': '4184dca455364439190864fe90b36c0a',
+                    'from': '+15109013221',
+                    'to': '+15108134713',
+                    'applicationSid': '',
+                    'statusCallback': '',
+                    'messagingServiceSid': 'MG92a2e26fc2534bd0b48742c25794c464',
+                    'body': 'Your child seems to be down. You might want to check on him',
+                    'maxPrice': '',
+                    'provideFeedback': ''
+                });
+            if outcome["fear"]>0.8:
+                print "fear detected"
+                result = rapid.call('Twilio', 'sendSms', {
+                    'accountSid': 'ACac8c7fa67c6225368680cefe0adad93a',
+                    'accountToken': '4184dca455364439190864fe90b36c0a',
+                    'from': '+15109013221',
+                    'to': '+15108134713',
+                    'applicationSid': '',
+                    'statusCallback': '',
+                    'messagingServiceSid': 'MG92a2e26fc2534bd0b48742c25794c464',
+                    'body': 'Your child seems to be frightful. You might want to check on him',
+                    'maxPrice': '',
+                    'provideFeedback': ''
+                });
+
             person1.addMood(outcome)
         except:
             pass
@@ -367,6 +395,7 @@ def getEmotion(id,stop):
 
 def camera(id,stop):
     global lock2
+    global inbyte
     cap = cv2.VideoCapture(0)
     while True:
         ret, frame = cap.read()
@@ -376,6 +405,9 @@ def camera(id,stop):
         cv2.imshow('frame', gray)
         lock2.acquire()
         cv2.imwrite('2.jpg', frame)
+        ret, jpeg = cv2.imencode('.jpg', frame)
+        inbyte = jpeg.tobytes()
+        #cv2.imwrite('../livestream/static/2.jpg', frame)
         lock2.release()
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -385,12 +417,13 @@ def camera(id,stop):
     cap.release()
     cv2.destroyAllWindows()
 
-if __name__ == '__main__':
-    # solr_clusters Nmat(len(results.docs)))
-    lock2 = threading.Lock()
-    person1 = Profile(5)
-    responce = raw_input("Load data? Y/N")
-    if responce.upper()=="Y":
+def main():
+    global inbyte
+    inbyte = None
+
+    # responce = raw_input("Load data? Y/N")
+    responce = "Y"
+    if responce.upper() == "Y":
         try:
             with open('moods.pkl', 'rb') as input:
                 moods = pickle.load(input)
@@ -401,24 +434,25 @@ if __name__ == '__main__':
         except:
             pass
     stop_threads = False
-    message = ""
-    counter = 0
     threads = []
-    c = threading.Thread(target=camera,args=(id,lambda: stop_threads))
-    # c.start()
-    t = threading.Thread(target=audioWorker,args=(id,lambda: stop_threads))
-    t.start()
-    p = threading.Thread(target=displayStats,args=(id,lambda: stop_threads))
+    p = threading.Thread(target=displayStats, args=(id, lambda: stop_threads))
     p.start()
-    i = threading.Timer(5,getEmotion,args=(id,lambda: stop_threads))
+    i = threading.Timer(5, getEmotion, args=(id, lambda: stop_threads))
     i.start()
+    c = threading.Thread(target=camera, args=(id, lambda: stop_threads))
+    c.start()
+    t = threading.Thread(target=audioWorker, args=(id, lambda: stop_threads))
+    t.start()
+
     threads.append(t)
     threads.append(p)
     threads.append(i)
     threads.append(c)
+
     while True:
+        app.run(host='192.168.161.1', debug=True,use_reloader=False)
         option = raw_input("1. End application\n2. Save person data")
-        if option=="1":
+        if option == "1":
             break
         elif option == "2":
             with open('moods.pkl', 'wb') as output:
@@ -431,3 +465,27 @@ if __name__ == '__main__':
     for worker in threads:
         worker.join()
     print ("Application Exited")
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+def gen():
+    global inbyte
+    while True:
+        #frame = camera.get_frame()
+        yield (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + inbyte + b'\r\n\r\n')
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(gen(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+if __name__ == '__main__':
+    person1 = Profile(5)
+    lock2 = threading.Lock()
+    main()
+
